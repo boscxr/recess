@@ -232,6 +232,7 @@ export default function Products() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+                  
                   <Table>
                     <TableHeader>
                       <TableRow>

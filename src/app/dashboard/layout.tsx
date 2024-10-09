@@ -4,8 +4,6 @@ import Header from '@/app/ui/dashboard/header'; // Make sure this is the correct
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col h-screen">
-      {/* Header stays at the top */}
-      <Header /> 
 
       <div className="flex flex-grow">
         {/* Sidenav below the header */}
