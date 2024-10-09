@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id          Int         @id @default(autoincrement())
+  name        String
+  description String?
+  price       Float
+  stock       Int
+  sku         String      @unique
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  orderItems  OrderItem[]
+  cartItems   CartItem[]  // Agrega esta línea para la relación inversa con CartItem
+
+  @@map("products")
+}
+
+model Customer {
+  id          Int       @id @default(autoincrement())
+  firstName   String
+  lastName    String
+  email       String     @unique
+  phone       String?
+  address     String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  orders      Order[]
+  cart        Cart?
+
+  @@map("customers")
+}
+
+model Order {
+  id           Int         @id @default(autoincrement())
+  orderNumber  String      @unique
+  status       String
+  totalAmount  Float
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  customerId   Int
+  customer     Customer    @relation(fields: [customerId], references: [id])
+  orderItems   OrderItem[]
+  shipping     Shipping?
+  payment      Payment?
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  quantity  Int
+  unitPrice Float
+  productId Int
+  orderId   Int
+  product   Product  @relation(fields: [productId], references: [id])
+  order     Order    @relation(fields: [orderId], references: [id])
+
+  @@map("order_items")
+}
+
+model Cart {
+  id         Int        @id @default(autoincrement())
+  customerId Int        @unique
+  customer   Customer   @relation(fields: [customerId], references: [id])
+  items      CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  quantity  Int
+  productId Int
+  cartId    Int
+  product   Product  @relation(fields: [productId], references: [id])
+  cart      Cart     @relation(fields: [cartId], references: [id])
+
+  @@map("cart_items")
+}
+
+model Shipping {
+  id        Int      @id @default(autoincrement())
+  address   String
+  city      String
+  state     String
+  zipCode   String
+  country   String
+  orderId   Int      @unique
+  order     Order    @relation(fields: [orderId], references: [id])
+
+  @@map("shipping")
+}
+
+model Payment {
+  id         Int      @id @default(autoincrement())
+  amount     Float
+  method     String
+  status     String
+  createdAt  DateTime @default(now())
+  orderId    Int      @unique
+  order      Order    @relation(fields: [orderId], references: [id])
+
+  @@map("payments")
+}
