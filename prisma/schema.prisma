@@ -14,19 +14,32 @@ datasource db {
 }
 
 model Product {
-  id          Int         @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   name        String
   description String?
   price       Float
   stock       Int
-  sku         String      @unique
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  orderItems  OrderItem[]
-  cartItems   CartItem[]  // Agrega esta línea para la relación inversa con CartItem
+  sku         String        @unique
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  orderItems  OrderItem[]   // Relación con la tabla orderItems
+  cartItems   CartItem[]    // Relación con la tabla CartItem
+  images      ProductImages[] // Relación con la tabla ProductImages
 
   @@map("products")
 }
+
+model ProductImages {
+  id        Int      @id @default(autoincrement())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId Int
+  imageUrl  String
+  altText   String?
+  imageOrder     Int      @default(0)
+
+  @@map("product_images")
+}
+
 
 model Customer {
   id          Int       @id @default(autoincrement())
