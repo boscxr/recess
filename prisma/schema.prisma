@@ -18,8 +18,8 @@ model Product {
   name        String
   description String?
   price       Float
-  stock       Int
-  sku         String        @unique
+  stock       Int?          // Make stock nullable by adding '?'
+  sku         String       @unique
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   orderItems  OrderItem[]   // Relación con la tabla orderItems
