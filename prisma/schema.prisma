@@ -17,16 +17,36 @@ model Product {
   id          Int           @id @default(autoincrement())
   name        String
   description String?
-  price       Float
-  stock       Int?          // Make stock nullable by adding '?'
-  sku         String       @unique
+  retailPrice Float
+  wholesalePrice Float
+  stock       Int?          
+  sku         String        @unique
+  status      ProductStatus @default(ACTIVE)
+  favorite    Boolean       @default(false)
+  brandId     Int?          // Clave foránea a la tabla Brand
+  brand       Brand?        @relation(fields: [brandId], references: [id])
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
-  orderItems  OrderItem[]   // Relación con la tabla orderItems
-  cartItems   CartItem[]    // Relación con la tabla CartItem
-  images      ProductImages[] // Relación con la tabla ProductImages
+  orderItems  OrderItem[]   
+  cartItems   CartItem[]   
+  images      ProductImages[] 
+  categories  ProductCategory[] 
 
   @@map("products")
+}
+
+model Brand {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique  // Nombre de la marca debe ser único
+  products Product[] // Relación uno a muchos con productos
+
+  @@map("brands")
+}
+
+enum ProductStatus {
+  ACTIVE
+  DRAFT
+  ARCHIVED
 }
 
 model ProductImages {
@@ -40,6 +60,24 @@ model ProductImages {
   @@map("product_images")
 }
 
+model Category {
+  id        Int              @id @default(autoincrement())
+  name      String           @unique // El nombre de la categoría debe ser único
+  products  ProductCategory[] // Relación muchos a muchos con productos
+
+  @@map("categories")
+}
+
+model ProductCategory {
+  productId   Int
+  categoryId  Int
+
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([productId, categoryId]) // Clave compuesta para evitar duplicados
+  @@map("product_categories")
+}
 
 model Customer {
   id          Int       @id @default(autoincrement())
