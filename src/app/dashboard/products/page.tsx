@@ -250,16 +250,6 @@ export default async function Products({ searchParams }: ProductsPageProps) {
                       <a
                         href={`/api/products/export${buildQueryString({
                           ...searchParams,
-                          format: 'xlsx',
-                        })}`}
-                      >
-                        Exportar como XLSX
-                      </a>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <a
-                        href={`/api/products/export${buildQueryString({
-                          ...searchParams,
                           format: 'json',
                         })}`}
                       >

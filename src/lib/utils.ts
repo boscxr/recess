@@ -8,10 +8,11 @@ export function cn(...inputs: ClassValue[]) {
 export function buildQueryString(params: { [key: string]: any }): string {
   const query = new URLSearchParams();
   for (const key in params) {
-    if (params[key]) {
-      query.set(key, params[key]);
+    if (params[key] !== undefined && params[key] !== null) { // Verifica solo null o undefined
+      query.set(key, String(params[key])); // Convertir a cadena para evitar problemas con valores no string
     }
   }
   const queryString = query.toString();
   return queryString ? `?${queryString}` : '';
 }
+
