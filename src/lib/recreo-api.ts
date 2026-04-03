@@ -14,7 +14,6 @@ interface RequestOptions {
 async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, params } = options;
 
-  // Build URL with query params
   const url = new URL(`/api/v1/admin${path}`, API_BASE);
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
@@ -38,7 +37,7 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
-    next: { revalidate: 30 }, // Cache for 30 seconds
+    next: { revalidate: 30 },
   });
 
   if (!res.ok) {
@@ -109,20 +108,39 @@ export interface InventoryPiece {
     has_evidence: boolean;
     created_at: string;
   }[];
+  // Show-only: full movements array
+  movements?: {
+    id: string;
+    piece_serial: string;
+    from_status: string;
+    to_status: string;
+    movement_type: string;
+    performed_by: string;
+    notes: string;
+    created_at: string;
+  }[];
 }
 
-interface PiecesResponse {
+// Actual backend response shape: { pieces: [...], meta: {...}, status_counts: {...} }
+interface RawPiecesResponse {
+  pieces: InventoryPiece[];
+  meta: {
+    current_page: number;
+    per_page: number;
+    total_count: number;
+    total_pages: number;
+  };
+  status_counts: Record<string, number>;
+}
+
+// Normalized shape for frontend consumption
+export interface PiecesResponse {
   success: boolean;
   data: InventoryPiece[];
   meta: {
     pagination: { page: number; per_page: number; total: number; pages: number };
     status_counts: Record<string, number>;
   };
-}
-
-interface PieceResponse {
-  success: boolean;
-  data: InventoryPiece;
 }
 
 export async function fetchPieces(params?: {
@@ -136,11 +154,34 @@ export async function fetchPieces(params?: {
   sort?: string;
   direction?: string;
 }): Promise<PiecesResponse> {
-  return apiRequest<PiecesResponse>("/inventory_pieces", { params: params as Record<string, string | number | undefined> });
+  const raw = await apiRequest<RawPiecesResponse>("/inventory_pieces", {
+    params: params as Record<string, string | number | undefined>,
+  });
+  return {
+    success: true,
+    data: raw.pieces,
+    meta: {
+      pagination: {
+        page: raw.meta.current_page,
+        per_page: raw.meta.per_page,
+        total: raw.meta.total_count,
+        pages: raw.meta.total_pages,
+      },
+      status_counts: raw.status_counts || {},
+    },
+  };
 }
 
-export async function fetchPiece(id: string): Promise<PieceResponse> {
-  return apiRequest<PieceResponse>(`/inventory_pieces/${id}`);
+// Show returns piece directly (no wrapper)
+export async function fetchPiece(id: string): Promise<{ success: boolean; data: InventoryPiece }> {
+  const piece = await apiRequest<InventoryPiece>(`/inventory_pieces/${id}`);
+  return { success: true, data: piece };
+}
+
+// Lookup by folio
+export async function fetchPieceByFolio(folio: string): Promise<{ success: boolean; data: InventoryPiece }> {
+  const piece = await apiRequest<InventoryPiece>(`/inventory_pieces/by_folio/${encodeURIComponent(folio)}`);
+  return { success: true, data: piece };
 }
 
 export async function transitionPiece(
@@ -152,6 +193,60 @@ export async function transitionPiece(
     method: "POST",
     body: { status, ...data },
   });
+}
+
+// Dashboard KPIs
+export interface DashboardData {
+  summary: {
+    total_pieces: number;
+    pendiente_compra: number;
+    por_recibir: number;
+    en_bodega: number;
+    en_transito: number;
+    entregado: number;
+    danado: number;
+  };
+  status_breakdown: Record<string, number>;
+  condition_breakdown: Record<string, number>;
+  stale: {
+    total: number;
+    threshold_days: number;
+    breakdown: Record<string, number>;
+    aging_breakdown: { status: string; bucket_7_14: number; bucket_14_30: number; bucket_30_plus: number }[];
+  };
+  recent_activity: {
+    id: string;
+    piece_serial: string;
+    piece_name: string;
+    piece_id: string;
+    from_status: string;
+    to_status: string;
+    movement_type: string;
+    performed_by: string;
+    notes: string;
+    created_at: string;
+  }[];
+}
+
+export async function fetchDashboard(params?: { stale_days?: number }): Promise<DashboardData> {
+  return apiRequest<DashboardData>("/inventory_pieces/dashboard", {
+    params: params as Record<string, string | number | undefined>,
+  });
+}
+
+// Statuses catalog
+export interface StatusConfig {
+  key: string;
+  label: string;
+  label_en: string;
+  color: string;
+  requires_evidence: boolean;
+  evidence_requirements: string[];
+  next_statuses: string[];
+}
+
+export async function fetchStatuses(): Promise<Record<string, StatusConfig>> {
+  return apiRequest<Record<string, StatusConfig>>("/inventory_pieces/statuses");
 }
 
 // ============================================
@@ -190,7 +285,18 @@ export interface InventoryBox {
   updated_at: string;
 }
 
-interface BoxesResponse {
+// Actual backend: { boxes: [...], meta: {...} }
+interface RawBoxesResponse {
+  boxes: InventoryBox[];
+  meta: {
+    current_page: number;
+    per_page: number;
+    total_count: number;
+    total_pages: number;
+  };
+}
+
+export interface BoxesResponse {
   success: boolean;
   data: InventoryBox[];
   meta: {
@@ -206,11 +312,26 @@ export async function fetchBoxes(params?: {
   status?: string;
   search?: string;
 }): Promise<BoxesResponse> {
-  return apiRequest<BoxesResponse>("/inventory_boxes", { params: params as Record<string, string | number | undefined> });
+  const raw = await apiRequest<RawBoxesResponse>("/inventory_boxes", {
+    params: params as Record<string, string | number | undefined>,
+  });
+  return {
+    success: true,
+    data: raw.boxes,
+    meta: {
+      pagination: {
+        page: raw.meta.current_page,
+        per_page: raw.meta.per_page,
+        total: raw.meta.total_count,
+        pages: raw.meta.total_pages,
+      },
+    },
+  };
 }
 
-export async function fetchBox(id: string) {
-  return apiRequest<{ success: boolean; data: InventoryBox }>(`/inventory_boxes/${id}`);
+export async function fetchBox(id: string): Promise<{ success: boolean; data: InventoryBox }> {
+  const box = await apiRequest<InventoryBox>(`/inventory_boxes/${id}`);
+  return { success: true, data: box };
 }
 
 // ============================================
@@ -221,15 +342,41 @@ export interface InventoryReceipt {
   id: string;
   receipt_number: string;
   status: string;
+  status_label: string;
+  boxes_count: number;
   expected_pieces_count: number;
   received_pieces_count: number;
+  good_pieces_count: number;
+  damaged_pieces_count: number;
+  missing_pieces_count: number;
+  completion_percentage: number;
+  overdue: boolean;
+  transport_type: string | null;
   notes: string | null;
-  project: { id: string; name: string } | null;
-  location: { id: string; name: string } | null;
+  expected_date: string | null;
+  project: { id: string; code: string; name: string } | null;
+  supplier: { id: string; code: string; name: string } | null;
+  location: { id: string; name: string; location_type: string } | null;
+  invoice: { id: string; invoice_number: string; supplier_name: string; status: string } | null;
+  received_by: { id: string; name: string } | null;
+  created_by: { id: string; name: string } | null;
+  boxes: { id: string; box_number: string; status: string; display_name: string; pieces_count: number }[];
   created_at: string;
+  updated_at: string;
 }
 
-interface ReceiptsResponse {
+// Actual backend: { inventory_receipts: [...], meta: {...} }
+interface RawReceiptsResponse {
+  inventory_receipts: InventoryReceipt[];
+  meta: {
+    current_page: number;
+    per_page: number;
+    total: number;
+    total_pages: number;
+  };
+}
+
+export interface ReceiptsResponse {
   success: boolean;
   data: InventoryReceipt[];
   meta: {
@@ -242,8 +389,55 @@ export async function fetchReceipts(params?: {
   per_page?: number;
   project_id?: string;
   status?: string;
+  location_id?: string;
+  overdue?: string;
+  today?: string;
+  this_week?: string;
+  search?: string;
 }): Promise<ReceiptsResponse> {
-  return apiRequest<ReceiptsResponse>("/inventory_receipts", { params: params as Record<string, string | number | undefined> });
+  const raw = await apiRequest<RawReceiptsResponse>("/inventory_receipts", {
+    params: params as Record<string, string | number | undefined>,
+  });
+  return {
+    success: true,
+    data: raw.inventory_receipts,
+    meta: {
+      pagination: {
+        page: raw.meta.current_page,
+        per_page: raw.meta.per_page,
+        total: raw.meta.total,
+        pages: raw.meta.total_pages,
+      },
+    },
+  };
+}
+
+// Receipt stats
+export interface ReceiptStats {
+  stats: {
+    total: number;
+    by_status: Record<string, number>;
+    overdue: number;
+    expected_today: number;
+    expected_this_week: number;
+    pieces_summary: {
+      total_expected: number;
+      total_received: number;
+      total_good: number;
+      total_damaged: number;
+      total_missing: number;
+    };
+  };
+}
+
+export async function fetchReceiptStats(params?: {
+  project_id?: string;
+  from?: string;
+  to?: string;
+}): Promise<ReceiptStats> {
+  return apiRequest<ReceiptStats>("/inventory_receipts/stats", {
+    params: params as Record<string, string | number | undefined>,
+  });
 }
 
 // ============================================
@@ -268,10 +462,10 @@ export interface Project {
   status: string;
 }
 
-export async function fetchLocations(): Promise<{ success: boolean; data: Location[] }> {
+export async function fetchLocations(): Promise<{ data: Location[] }> {
   return apiRequest("/locations", { params: { per_page: 100 } });
 }
 
-export async function fetchProjects(): Promise<{ success: boolean; data: Project[] }> {
+export async function fetchProjects(): Promise<{ data: Project[] }> {
   return apiRequest("/projects", { params: { per_page: 100, status: "active" } });
 }
