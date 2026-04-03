@@ -7,6 +7,7 @@ import {
   Settings,
   ShoppingCart,
   Users2,
+  Warehouse,
 } from "lucide-react"
 import { TooltipProvider,Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -59,6 +60,18 @@ export default function SideNav() {
       </Link>
     </TooltipTrigger>
     <TooltipContent side="right">Products</TooltipContent>
+  </Tooltip>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Link
+        href="/dashboard/inventory"
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
+      >
+        <Warehouse className="h-5 w-5" />
+        <span className="sr-only">Inventario</span>
+      </Link>
+    </TooltipTrigger>
+    <TooltipContent side="right">Inventario</TooltipContent>
   </Tooltip>
   <Tooltip>
     <TooltipTrigger asChild>
